@@ -1,92 +1,87 @@
-# 🏛️ Conversational Hybrid RAG System
+🏛️ Conversational Hybrid RAG
 
-An end-to-end, production-grade Hybrid Retrieval-Augmented Generation (RAG) assistant specializing in Medieval Indian History (Gurjara-Pratihara Empire). 
+A conversational Retrieval-Augmented Generation (RAG) assistant over a Medieval Indian History document (the Gurjara-Pratihara Empire). It combines dense semantic search, BM25 keyword search, and cross-encoder reranking, and it resolves follow-up questions using chat history so multi-turn conversations stay grounded in the source document.
 
-The system combines dense semantic search, sparse lexical retrieval, cross-encoder neural reranking, conversational multi-turn context resolution, and LLM answer generation.
+<!-- ADD: screenshot or GIF of the Streamlit UI here --> <!-- ADD: [Live demo](link) if deployed -->
+Why hybrid retrieval
 
----
+Pure vector search often misses exact proper nouns and dynastic titles, while pure keyword search misses paraphrased questions. This project retrieves with both, merges the candidates, and lets a cross-encoder pick the most relevant passages.
 
-## ⚡ Architecture Pipeline
-
-```text
-User Query + Chat History
-       │
-       ▼
-[ Query Reformulation (Gemini Flash) ] ── (Resolves pronouns & coreferences)
-       │
-       ├──► [ Dense Retriever: ChromaDB + text-embedding-004 ] (k=20)
-       │
-       └──► [ Sparse Retriever: BM25 Keyword Search ] (k=20)
-       │
-       ▼
-[ Deduplication & Candidate Merging ] (Unique passages)
-       │
-       ▼
-[ Cross-Encoder Reranker: ms-marco-MiniLM-L-6-v2 ] (Deep query-document scoring)
-       │
-       ▼ (Top-5 Passages)
-[ Context Prompt Formulation ]
-       │
-       ▼
-[ LLM Generation: Gemini 1.5 Flash ]
 Key Features
-Hybrid Retrieval: Mitigates vector embedding blind spots (e.g., exact proper nouns, dynastic titles) by combining dense semantic embeddings with BM25 keyword matching.
+Hybrid retrieval: dense search (ChromaDB + text-embedding-004) and sparse BM25 keyword search, k=20 each.
+Cross-encoder reranking: merged and deduplicated candidates are re-scored with ms-marco-MiniLM-L-6-v2; the top 5 passages go to the LLM.
+Conversational memory: follow-up questions with pronouns ("his father", "their capital") are rewritten into standalone queries before retrieval.
+Grounded answers: the prompt instructs the model to answer only from the retrieved context.
+Inspection UI: Streamlit interface that shows reranker scores and the retrieved context blocks.
+Architecture
+User Query + Chat History
+          │
+          ▼
+[ Query Reformulation (Gemini Flash) ]  ← resolves pronouns / coreferences
+          │
+          ├──► [ Dense Retriever: ChromaDB + text-embedding-004 ]  (k=20)
+          │
+          └──► [ Sparse Retriever: BM25 keyword search ]           (k=20)
+          │
+          ▼
+[ Deduplication & Candidate Merging ]
+          │
+          ▼
+[ Cross-Encoder Reranker: ms-marco-MiniLM-L-6-v2 ]
+          │
+          ▼  (top 5 passages)
+[ Prompt with Context ]
+          │
+          ▼
+[ Gemini Flash: Answer Generation ]
+          │
+          ▼
+[ Streamlit UI: answer + relevance scores + retrieved chunks ]
+Results
 
-Cross-Encoder Reranking: Applies full cross-attention scoring across top-40 candidate passages using ms-marco-MiniLM-L-6-v2 to prioritize high-precision context chunks.
+Fill with real numbers or delete this section. Do not publish placeholders.
 
-Conversational Memory & Coreference Resolution: Resolves ambiguous follow-up pronouns (e.g., "his father", "their capital") into self-contained search queries prior to vector execution.
-
-Hallucination Guardrails: Enforces grounded prompt templates with explicit document-only instructions.
-
-Interactive Inspection UI: Visualizes reranker scores and full retrieved context blocks in real time using Streamlit.
-
- Tech Stack
-Orchestration: LangChain / LCEL
-
-LLM & Embeddings: Google Gemini 1.5 Flash, models/text-embedding-004
-
-Dense Vector Store: ChromaDB
-
-Sparse Retrieval: Rank-BM25
-
-Reranker: Sentence-Transformers (cross-encoder/ms-marco-MiniLM-L-6-v2)
-
-Frontend: Streamlit
-
- Getting Started
-1. Clone the Repository
-Bash
-git clone [https://github.com/SambhavYatendraBhardwaj/conversational-hybrid-rag.git](https://github.com/SambhavYatendraBhardwaj/conversational-hybrid-rag.git)
+Check	Result
+Test questions	X
+Hybrid vs dense-only: answer correct	X% vs X%
+Follow-up questions resolved correctly	X / X
+Tech Stack
+Layer	Tools
+Orchestration	LangChain (LCEL)
+LLM & embeddings	Google Gemini Flash, text-embedding-004
+Dense store	ChromaDB
+Sparse retrieval	Rank-BM25
+Reranker	Sentence-Transformers cross-encoder/ms-marco-MiniLM-L-6-v2
+Frontend	Streamlit
+Project Structure
+├── ingestion.py                  # Document ingestion and indexing
+├── frontend.py                   # Streamlit app (chat, retrieval, reranking, generation)
+├── Gurjara_Pratihara_Empire.pdf  # Source document
+├── requirements.txt
+├── .gitignore
+└── README.md
+Setup
+bash
+git clone https://github.com/SambhavYatendraBhardwaj/conversational-hybrid-rag.git
 cd conversational-hybrid-rag
-2. Set Up Virtual Environment
-Bash
+
 python -m venv myenv
-# Windows
-myenv\Scripts\activate
-# Linux/macOS
-source myenv/bin/activate
-3. Install Dependencies
-Bash
+# Windows: myenv\Scripts\activate
+# Linux / macOS: source myenv/bin/activate
+
 pip install -r requirements.txt
-4. Configure Environment Variables
-Create a .env file in the root directory:
 
-Code snippet
-GOOGLE_API_KEY="your-gemini-api-key"
-5. Launch the Application
-Bash
+Create a .env file in the project root (never commit it):
+
+GOOGLE_API_KEY=your-gemini-api-key
+Run
+bash
 streamlit run frontend.py
-
----
-
-### Isse Push Karne Ke Commands:
-
-Terminal mein ye commands run kar do:
-
-```powershell
-git add README.md
-git commit -m "docs: add comprehensive project README with architecture diagram"
-git push origin main
-       │
-       ▼
-Streamlit Interactive UI (Live relevance scores & expanders)
+Limitations
+Built around a single source document; multi-document support is not implemented.
+Answers are only as good as the retrieved passages; no automated retrieval evaluation yet.
+Requires a Google API key for generation and embeddings.
+Roadmap
+Retrieval evaluation (hit-rate / MRR) comparing dense-only, BM25-only, and hybrid
+Multi-document upload
+Source citations with page numbers in answers
